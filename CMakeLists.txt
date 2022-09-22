@@ -1,0 +1,29 @@
+cmake_minimum_required(VERSION 3.24.0 FATAL_ERROR)
+set(PROJECT_NAME challenge)
+set(CMAKE_BUILD_TYPE "Release")
+project(${PROJECT_NAME} CXX)
+
+get_filename_component(PROJECT_DIR "${CMAKE_CURRENT_SOURCE_DIR}" ABSOLUTE)
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
+
+set(CMAKE_CXX_STANDARD 20)
+set(OUTPUT_DIR "${PROJECT_DIR}/bin/")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR})
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_DIR})
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_DIR})
+set(CMAKE_CURRENT_BINARY_DIR ${OUTPUT_DIR})
+set(CMAKE_BINARY_DIR ${OUTPUT_DIR})
+set(PROJECT_BINARY_DIR ${OUTPUT_DIR})
+
+include_directories(${PROJECT_SOURCE_DIR}/vendor/)
+include_directories(${PROJECT_SOURCE_DIR}/src/)
+include_directories(./src/)
+
+file(GLOB_RECURSE SRC_FILES ${PROJECT_SOURCE_DIR}/src/*.cpp)
+file(GLOB_RECURSE HEADER_FILES ${PROJECT_SOURCE_DIR}/src/*.h)
+
+source_group("Sources" FILES ${SRC_FILES})
+source_group("Headers" FILES ${HEADER_FILES})
+
+add_executable(${PROJECT_NAME} ${SRC_FILES} ${HEADER_FILES})
+set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".out")
