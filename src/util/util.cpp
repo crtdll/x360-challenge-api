@@ -1,4 +1,5 @@
 #include "util.h"
+#include "io/binary_reader.h"
 #include <random>
 
 namespace util {
@@ -33,4 +34,23 @@ namespace util {
 
 		return str.str();
 	}
+
+    uint8_t* bswap(uint8_t* data, int size, int bit_count) {
+        int count = bit_count / 8;
+        uint8_t* tmp = new uint8_t[size];
+
+        for (int i = 0; i < size; i += count) {
+            uint8_t* num_array = new uint8_t[count];
+            memcpy(num_array, &data[i], count);
+            
+            io::reader yeet(nullptr, 0);
+            yeet.reverse(num_array, count);
+
+            memcpy(&tmp[i], num_array, count);
+            delete[] num_array;
+        }
+
+        memcpy(data, tmp, size);
+        delete[] tmp;
+    }
 };

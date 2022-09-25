@@ -33,5 +33,7 @@ namespace challenges {
 
     // testing
     bool calculate_ecc_digest(uint16_t salt_checksum, std::string seed, uint8_t** output);
-    bool calculate_hv_digest(uint8_t* salt, uint8_t** output);
+    void calculate_hv_digest(uint8_t* salt, uint8_t** output);
+    void calculate_rsa_memory_key(uint8_t* seed, uint8_t* output);
+    void calculate_rsa_digest(hv_encryption_keys* keys, uint8_t* out);
 };

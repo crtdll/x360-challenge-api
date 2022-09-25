@@ -3,7 +3,8 @@
 #include "core.h"
 #include "util/util.h"
 #include "util/dirs.h"
-#include "xecrypt/sha1.h"
+#include "util/io/binary_reader.h"
+#include "crypto/sha1.h"
 #include <byteswap.h>
 
 namespace challenges {
@@ -62,7 +63,7 @@ namespace challenges {
         return true;
     }
 
-    bool calculate_hv_digest(uint8_t* salt, uint8_t* output) {
+    void calculate_hv_digest(uint8_t* salt, uint8_t* output) {
         sha1::sha1_t state;
         state.process(salt, 0x10);
 
@@ -70,7 +71,57 @@ namespace challenges {
             state.process(&g_core->m_hv_decrypted.data()[g_hv_digest_ranges[i].first], g_hv_digest_ranges[i].second);
 
         state.finish(output);
-        return true;
+    }
+
+    uint8_t* calculate_rsa_sha_salted_hash(uint8_t* salt, int salt_len, uint8_t* rsa, int rsa_len) {
+        int increment = 0;
+        for (int i = 0; i < rsa_len; i += 0x14) {
+            uint8_t inc_block[] = { 0, 0, 0, (uint8_t)increment++ }; 
+            uint8_t hash[0x14];
+
+            sha1::sha1_t state;
+            state.process(salt, salt_len);
+            state.process(inc_block, sizeof(inc_block));
+            state.finish(hash);
+
+            for (int j = 0; j < ((i + 0x14 > rsa_len) ? rsa_len - i : 0x14); j++)
+                rsa[i + j] ^= hash[j];
+        }
+
+        return rsa;
+    }
+
+    void calculate_rsa_memory_key(hv_encryption_keys* keys, uint8_t* output) {
+        memset(output, 0, 0x80);
+
+        uint8_t random[0x14];
+        memset(random, 0, 0x14); random[0] = 1;
+        // util::generate_random_bytes(&output[1], 0x14);
+
+        uint8_t data[] = { 0xDA, 0x39, 0xA3, 0xEE, 0x5E, 0x6B, 0x4B, 0x0D, 0x32, 0x55, 0xBF, 0xEF, 0x95, 0x60, 0x18, 0x90, 0xAF, 0xD8, 0x07, 0x09 }; // 0x15FB0
+        memcpy(&output[0x1], random, sizeof(random));
+        memcpy(&output[0x15], data, sizeof(data));
+        memcpy(&output[0x50], keys, sizeof(hv_encryption_keys));
+
+        output[0x4F] = 1;
+
+        uint8_t temp[0x6B];
+        memcpy(temp, &output[0x15], sizeof(temp));
+        memcpy(&output[0x15], calculate_rsa_sha_salted_hash(random, sizeof(random), temp, sizeof(temp)), sizeof(temp));
+        
+        memcpy(temp, &output[0x15], sizeof(temp));
+        memcpy(&output[0x1], calculate_rsa_sha_salted_hash(temp, sizeof(temp), random, sizeof(random)), sizeof(random));
+    }
+
+    void calculate_rsa_digest(hv_encryption_keys* keys, uint8_t* out) {
+        calculate_rsa_memory_key(keys, out);
+
+        io::reader tmp(nullptr, 0);
+        tmp.reverse(out, 0x80);
+
+        util::bswap(out, 0x80, 0x40);
+        // todo: rsa
+        util::bswap(out, 0x80, 0x40);
     }
 
     bool handle_hv_challenge(hv_challenge params, hv_challenge_buffer* output) {
@@ -144,8 +195,7 @@ namespace challenges {
 
         // calculate the hv digest
         uint8_t hv_digest[0x14];
-        if (!calculate_hv_digest(params.m_salt, hv_digest))
-            return false;
+        calculate_hv_digest(params.m_salt, hv_digest);;
 
         memcpy(output->m_hv_digest, &hv_digest[0xE], sizeof(output->m_hv_digest));
 
